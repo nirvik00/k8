@@ -100,6 +100,11 @@ def block_hor(x, y, l, w, LR):
         return poly
 
 def add_fingers(x,y, l, w):
+    try:
+        print(len(req_srf))
+        rs.DeleteObjects(req_srf)
+    except:
+        pass
     req_srf=[]
     #one-sided
     ch_num=random.choice([2,3,4])
@@ -118,19 +123,21 @@ def add_fingers(x,y, l, w):
                 req_srf.append(srf)
             else:
                 poly_g=block_hor(x,y-(w+10)*i,l,w,ch_lr)
-                add_srf(poly_g,14)
+                srf_g=add_srf(poly_g,14)
+                req_srf.append(srf_g)
                 poly_f=block_hor(x,y-(w+10)*i,l/2,w,ch_lr)
                 rs.MoveObject(poly_f,[0,0,14])
-                srf=add_srf(poly_f,14)
-                req_srf.append(srf)
+                srf_f=add_srf(poly_f,14)
+                req_srf.append(srf_f)
     else:
         ch_num=random.choice([2,3,4])
         if(ch_num==2):
             poly_le=block_hor(x,y-(w+10)*0,l,w,'left')
-            add_srf(poly_le,42)
+            srf_le=add_srf(poly_le,42)
+            req_srf.append(srf_le)
             poly_ri=block_hor(x,y-(w+10)*0,l,w,'right')
-            srf=add_srf(poly_ri,42)
-            req_srf.append(srf)
+            srf_ri=add_srf(poly_ri,42)
+            req_srf.append(srf_ri)
         elif(ch_num==3):
             ch_an=random.choice(['top','down'])
             if(ch_an=='top'):
@@ -177,17 +184,17 @@ def add_fingers(x,y, l, w):
                 for i in range(2):
                     poly_g_le=block_hor(x,y-(w+10)*i,l,w,'left')
                     srf_loop_0=add_srf(poly_g_le,14)
+                    req_srf.append(srf_loop_0)
                     poly_f_le=block_hor(x,y-(w+10)*i,l/2,w,'left')
                     rs.MoveObject(poly_f_le,[0,0,14])
                     srf_loop_1=add_srf(poly_f_le,14)
+                    req_srf.append(srf_loop_1)
                     poly_g_ri=block_hor(x,y-(w+10)*i,l,w,'right')
                     srf_loop_2=add_srf(poly_g_ri,14)
+                    req_srf.append(srf_loop_2)
                     poly_f_ri=block_hor(x,y-(w+10)*i,l/2,w,'right')
                     rs.MoveObject(poly_f_ri,[0,0,14])
                     srf_loop_3=add_srf(poly_f_ri,14)
-                    req_srf.append(srf_loop_0)
-                    req_srf.append(srf_loop_1)
-                    req_srf.append(srf_loop_2)
                     req_srf.append(srf_loop_3)
             elif(ch_num_left==3):
                 poly_g_ri=block_hor(x,y-(w+10)*0,l,w,'right')
@@ -210,10 +217,10 @@ def add_fingers(x,y, l, w):
                 for i in range(2):
                     poly_g_le=block_hor(x,y-(w+10)*i,l,w,ch_lr_)
                     srf_loop_0=add_srf(poly_g_le,14)
+                    req_srf.append(srf_loop_0)                    
                     poly_f_le=block_hor(x,y-(w+10)*i,l/2,w,ch_lr_)
                     rs.MoveObject(poly_f_le,[0,0,14])
                     srf_loop_1=add_srf(poly_f_le,14)
-                    req_srf.append(srf_loop_0)
                     req_srf.append(srf_loop_1)
     return req_srf
 
@@ -230,27 +237,24 @@ def check(p,Q,poly_li,l,w):
         if(rs.PointInPlanarClosedCurve(q, poly)==0):
             intx=rs.CurveCurveIntersection(req, poly)
             if(intx and len(intx)>0):
-                print('intx')
                 sum+=1
-            poly_cen=rs.CurveAreaCentroid(poly)[0]
-            if(rs.PointInPlanarClosedCurve(poly_cen, req)!=0):
-                sum+=1
-            if(rs.PointInPlanarClosedCurve(req_cen, poly)!=0):
-                sum+=1
-    print(sum)
+                rs.DeleteObject(req)
+                break
+        else:
+            rs.DeleteObject(req)
+            sum+=1
+            break
+    rs.DeleteObject(q)
     if sum==0:
-        return True
+        return [True,req]
     else:
-        #rs.DeleteObject(req)
-        return False
+        return [False]
 
-def get_eval_pts(X,Y, srf_li):
+def get_eval_pts(X,Y, srf_li_x, req_l, req_w):
     #40 250
     #94 145
-    req_w=random.randint(94,145)
-    req_l=10000/req_w
     ini_poly=[]
-    for i in srf_li:
+    for i in srf_li_x:
         b=rs.BoundingBox(i)
         b0=b[0]
         b1=b[1]
@@ -259,75 +263,127 @@ def get_eval_pts(X,Y, srf_li):
         if(b0[2]==0):
             this_poly=rs.AddPolyline([b0,b1,b2,b3,b0])
             ini_poly.append(this_poly)
-    k=0
+    req_poly=None
+    r_sum=0
+    k=Y
     for i in range(50):
         k-=10
         p_l_0=[X,k,0]
         p_l_1=[X-25,k,0]
-        rs.AddPoint(p_l_1)
-        rs.AddLine(p_l_0,p_l_1)
         p_r_0=[X+10,k,0]
         p_r_1=[X+35,k,0]
-        rs.AddPoint(p_r_1)
-        rs.AddLine(p_r_0,p_r_1)
-        if(i==7):
-            t_l=check(p_r_0, p_r_1, ini_poly, req_l, req_w)
+        t_l=check(p_r_0, p_r_1, ini_poly, req_l, req_w)
+        if(len(t_l)==2):
+            req_poly=t_l[1]
+            r_sum+=1
+        else:
             t_r=check(p_l_0, p_l_1, ini_poly, -req_l-10, req_w)
-            print(t_l, t_r)
-            if(t_l==True):
-                r0=p
-                r1=[p[0]+l, p[1],0]
-                r2=[p[0]+l, p[1]+w,0]
-                r3=[p[0], p[1]+w,0]
-                req=rs.AddPolyline([r0,r1,r2,r3,r0])
-                break
-            if(t_r==True):
-                r0=p
-                r1=[p[0]+l, p[1],0]
-                r2=[p[0]+l, p[1]+w,0]
-                r3=[p[0], p[1]+w,0]
-                req=rs.AddPolyline([r0,r1,r2,r3,r0])
+            if(len(t_r)==2):
+                req_poly=t_r[1]
+                r_sum+=1
+        if(r_sum>0):
+            break
+    req_poly2=rs.CopyObject(req_poly, [0,0,14])
+    srf_d=add_srf(req_poly,14)    
+    srf_a=add_srf(req_poly2, 14)
+    rs.DeleteObjects(ini_poly)
+    return [srf_d, srf_a]
 
-def plot(n,m):
-    srf_li=[]
-    counter=-1
-    a=700
-    b=800
-    for i in range(n):
-        for j in range(m):
-            counter+=1
-            X=i*a
-            Y=j*b
-            srf_top=add_top(X,Y)#up from 0,0
-            #rs.AddTextDot(counter,[X,Y,0])
-            srf_top_gym=srf_top[0]
-            srf_top_band=srf_top[1]
-            srf_li.append(srf_top_gym)
-            srf_li.append(srf_top_band)
-            
-            #going down from y=0 => subtract 73.6 : bottom of top
-            Y-=73.6
-            #corridor after top
-            Y-=10
-            srf_spine=add_spine(X,Y+73.6+10)
-            srf_li.append(srf_spine)
-            
-            
-            #fingers
-            req_w=random.randint(65,80)
-            req_l=13000/req_w
-            srf_fingers=add_fingers(X,Y,req_l,req_w)
-            for srf_finger in srf_fingers:
-                srf_li.append(srf_finger)
-            
-            #rest 
-            eval_pts=get_eval_pts(X,Y,srf_li)
-            
-            rs.ObjectColor(srf_top_gym, (255,33,3))
-            rs.ObjectColor(srf_top_band, (150,33,3))
-            
+def plot(M,N, main_counter):
+    try:
+        rs.DeleteObjects(srf_list_fingers)
+    except:
+        pass
+    try:
+        rs.DeleteObjects(srf_li)
+    except:
+        pass
+    srf_list_fingers=[]
+    srf_li=[]    
+    srf_gym=None
+    srf_band=None
+    srf_admin=None
+    srf_dining=None
+    srf_art=None
+    srf_spine=None
+    srf_din=None
+    srf_lab=None    
+    A=700
+    B=800
+    X=M*A
+    Y=N*B
+    #rs.AddTextDot(main_counter,[X,Y,0])
+    
+    srf_top=add_top(X,Y)#up from 0,0
+    srf_gym=srf_top[0]
+    srf_band=srf_top[1]
+    srf_li.append(srf_gym)
+    srf_li.append(srf_band)
+    
+    #going down from y=0 => subtract 73.6 : bottom of top
+    spine_Y=Y-73.6
+    #corridor after top
+    spine_Y-=10
+    srf_spine=add_spine(X,spine_Y+73.6+10)
+    
+    #fingers
+    req_w=random.randint(65,80)
+    req_l=13000/req_w
+    srf_list_fingers=add_fingers(X,spine_Y,req_l,req_w)
+    for srf_finger in srf_list_fingers:
+        srf_li.append(srf_finger)
+    
+    #rest 
+    req_w_adar=random.randint(94,145)
+    req_l_adar=13630/req_w_adar
+    srf_adar=get_eval_pts(X,Y,srf_li, req_l_adar, req_w_adar)
+    srf_admin=srf_adar[0]
+    srf_art=srf_adar[1]
+    srf_li.append(srf_admin)
+    srf_li.append(srf_art)
+    req_w_dila=random.randint(40,250)
+    req_l_dila=10000/req_w_dila
+    srf_dila=get_eval_pts(X,Y,srf_li, req_l_dila, req_w_dila)
+    srf_din=srf_dila[0]
+    srf_lab=srf_dila[1]    
+    srf_li.append(srf_din)
+    srf_li.append(srf_lab)
+    
+    rs.ObjectColor(srf_gym, (255,33,3))
+    rs.ObjectColor(srf_band, (150,33,3))
+    rs.ObjectColor(srf_admin, (150,133,3))
+    rs.ObjectColor(srf_art, (50,233,173))
+    rs.ObjectColor(srf_din, (250,33,203))
+    rs.ObjectColor(srf_lab, (150,193,249))
+    for srf_finger in srf_list_fingers:
+        rs.ObjectColor(srf_finger, (30,133,243))
+    #print(main_counter, len(srf_list_fingers))
+    
+    
+    srf_li_x=[]
+    srf_li_x.append(srf_band)
+    srf_li_x.append(srf_admin)
+    srf_li_x.append(srf_art)
+    srf_li_x.append(srf_din)
+    srf_li_x.append(srf_lab)
+    for srf_finger in srf_list_fingers:
+        srf_li_x.append(srf_finger)
+    bxb=rs.BoundingBox(srf_li_x)
+    bxb_poly=rs.AddPolyline([bxb[0],bxb[1],bxb[2],bxb[3],bxb[0]])
+    bsp=rs.BoundingBox(srf_spine)
+    sp_poly=rs.AddPolyline([bsp[0],bsp[1],bsp[2],bsp[3],bsp[0]])
+    intx_crv=rs.CurveBooleanIntersection(sp_poly,bxb_poly)
+    intx_srf=add_srf(intx_crv,28)
+    rs.ObjectColor(intx_srf,(255,255,255))
+    rs.DeleteObjects([srf_spine,bxb_poly,sp_poly])
     return srf_li
 
 rs.EnableRedraw(False)
-output=plot(1,1)
+global_counter=0
+a=10
+b=a
+for i in range(a):
+    for j in range(b):
+        output=plot(i,j,global_counter)
+        global_counter+=1
 rs.EnableRedraw(True)
